@@ -1,0 +1,83 @@
+----1. 
+create proc empbonus
+as begin
+	create table #EmployeeBonus (EmployeeID INT, FullName  varchar(50), Department NVARCHAR(50), Salary DECIMAL(10,2), BonusAmount DECIMAL(10,2))
+	insert into #EmployeeBonus
+	select EmployeeID, CONCAT(e.FirstName, ' ',e.LastName), e.department, salary, salary * BonusPercentage/100 as BonusAmount  
+	from Employees e left join DepartmentBonus d on e.Department=d.Department
+	select * from  #EmployeeBonus
+	end
+	exec empbonus
+
+	--2
+
+	create proc inc_salary
+as
+begin
+	update Employees
+	set Salary=e.salary+(e.Salary * d.BonusPercentage / 100)
+		from Employees e left join DepartmentBonus d on e.Department=d.Department 
+	select * from Employees
+end
+
+exec inc_salary
+
+	--3.
+create proc as_today
+as
+begin
+	merge into Products_Current as target
+	using Products_New as source
+	on target.productid = source.productid
+	when matched and target.price != source.price then
+	update set target.price = source.price
+	when not matched by source then delete
+	when not matched by target then 
+	insert values (source.productid, source.productname, source.price);
+
+	select * from Products_Current
+end
+ as_today
+
+--4 
+select t.id,
+	case when t.p_id is null then 'Root'
+		when t.id not in (select distinct p_id from Tree where p_id is not null) then 'Leaf'
+		else 'Inner'
+		end as Nodetype
+		from Tree t
+
+--5
+select s.user_id,
+    coalesce(
+        cast(sum(case when c.action = 'confirmed' then 1 else 0 end) as Float) / 
+        nullif(count(c.action), 0),
+        0
+    ) as confirmation_rate
+from Signups s
+left join Confirmations c on s.user_id = c.user_id
+group by s.user_id;
+
+--6
+6. select * from employees where salary<= (select min(salary) from employees)
+
+--7
+CREATE PROCEDURE GetProductSalesSummary (@ProductID INT)
+AS
+BEGIN
+    SELECT 
+        p.ProductName,
+               COALESCE(SUM(s.Quantity), NULL) AS TotalQuantitySold,
+                COALESCE(SUM(s.Quantity * p.Price), NULL) AS TotalSalesAmount,
+               COALESCE(MIN(s.SaleDate), NULL) AS FirstSaleDate,
+                COALESCE(MAX(s.SaleDate), NULL) AS LastSaleDate
+    FROM 
+        Products p
+           Sales s ON p.ProductID = s.ProductID AND s.ProductID = @ProductID
+    WHERE 
+        p.ProductID = @ProductID
+    GROUP BY 
+        p.ProductName;
+END;
+
+GetProductSalesSummary 1
